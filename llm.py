@@ -56,7 +56,7 @@ def llm_create_db_entry(article):
         temperature=1.0,
     )
 
-    response_message_summary = response_summary.choices[0].message
+    response_message_summary = response_summary.choices[0].message.content
 
     if tool_calls:
         tool_call = tool_calls[

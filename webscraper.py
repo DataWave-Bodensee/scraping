@@ -133,7 +133,7 @@ def filter_and_save(articles):
 
 
 #scrape_and_save()
-articles = load_articles()
-filter_and_save(articles)
-#articles = load_filtered_articles()
-#print(llm_create_db_entry(articles.iloc[1]))
+#articles = load_articles()
+#filter_and_save(articles)
+articles = load_filtered_articles()
+print(llm_create_db_entry(articles.iloc[1]))
