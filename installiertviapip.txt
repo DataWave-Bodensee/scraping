@@ -1,7 +1,0 @@
-pip install newspaper3k
-pip install pandas
-
-# workaround for pip install pygooglenews: pygooglenews.py file, that was copied into this directory (don't) remove + run the following 3 pip installs
-pip install feedparser
-pip install dateparser
-pip install beautifulsoup4
