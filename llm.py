@@ -1,9 +1,9 @@
 from openai import OpenAI
 import json
 
-def _create_db_entry(params):
+def _create_db_entry(args_from_llm, article):
     """Creates a new entry in the database."""
-    print("Creating a new database entry...", params)
+    print("Creating a new database entry...", args_from_llm, article.title, article.published)
     return "Database entry created successfully."
 
 def llm_create_db_entry(article):        
@@ -20,26 +20,25 @@ def llm_create_db_entry(article):
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "id": {
+                        "date": {
                             "type": "string",
-                            "description": "An unique identifier for the entry.",
+                            "description": "First date that you find in the article.",
                         },
-                        "treetype": {
+                        "nameOfPersonOrOrganization": {
                             "type": "string", 
-                            "description": "The type of tree that was killed.",
-                            "enum": ["Birke", "Buche"]
+                            "description": "First name of any person or organization that you find in the article."
                         },
-                        "year": {
-                            "type": "integer",
-                            "description": "The year the tree was killed.",
+                        "personKilled": {
+                            "type": "string",
+                            "description": "Yes or No: Did the article write about a social gathering event?",
                         },
                         }
                     },
-                "required": ["id", "treetype", "year"],
+                "required": ["date", "nameOfPersonOrOrganization", "personKilled"],
             },
         },
     ]
-    db_required_args = ["id", "treetype", "year"]
+    db_required_args = ["date", "nameOfPersonOrOrganization", "personKilled"]
 
     # Ask LLM, to call create_database_entry tool by extracting the relevant information from the given article.
     response = client.chat.completions.create(
@@ -47,7 +46,7 @@ def llm_create_db_entry(article):
         messages = [
             {"role": "system", "content": "You are a helpful assistant, aimed at analysing text data and extracting relevant information."},
             {"role": "user", "content": "Make a new database entry for the following article:"},
-            {"role": "user", "content": article},
+            {"role": "user", "content": article.content},
         ],
         temperature = 1.0,
         tools = tools,
@@ -66,15 +65,10 @@ def llm_create_db_entry(article):
         # Check if all required arguments are present in the function call
         for arg in db_required_args:
             if arg not in function_args:
-                return f"Error: No {arg} found in the function call."        
+                return f"Error: No {arg} found in the function call. Function call: {function_args}"        
 
-        _create_db_entry(
-            function_args
-        )
+        _create_db_entry(function_args, article)
         
         return "Database entry created successfully."
     
     return "Error: No function call found."
-
-
-llm_create_db_entry("A birch tree was killed in 2022. ARTICLE_ID:23")

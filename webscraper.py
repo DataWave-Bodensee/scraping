@@ -2,6 +2,7 @@ from pygooglenews import GoogleNews
 import newspaper
 import datetime
 import pandas as pd
+from llm import llm_create_db_entry
 
 
 def get_news_websites(search):
@@ -125,3 +126,4 @@ def filter_and_save(articles):
 # scrape_and_save()
 articles = load_articles()
 filter_and_save(articles)
+print(llm_create_db_entry(articles.iloc[0]))
