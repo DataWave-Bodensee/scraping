@@ -1,12 +1,20 @@
 from openai import OpenAI
 import json
 
-def _create_db_entry(args_from_llm, article):
+
+def _create_db_entry(args_from_llm, article, response_message_summary):
     """Creates a new entry in the database."""
-    print("Creating a new database entry...", args_from_llm, article.title, article.published)
+    print(
+        "Creating a new database entry...",
+        args_from_llm,
+        article.title,
+        article.published,
+        response_message_summary,
+    )
     return "Database entry created successfully."
 
-def llm_create_db_entry(article):        
+
+def llm_create_db_entry(article):
     """Takes an article as input and creates a new database entry, by utilizing a llm to extract the relevant information."""
     client = OpenAI()
 
@@ -25,15 +33,15 @@ def llm_create_db_entry(article):
                             "description": "First date that you find in the article.",
                         },
                         "nameOfPersonOrOrganization": {
-                            "type": "string", 
-                            "description": "First name of any person or organization that you find in the article."
+                            "type": "string",
+                            "description": "First name of any person or organization that you find in the article.",
                         },
                         "personKilled": {
                             "type": "string",
                             "description": "Yes or No: Did the article write about a social gathering event?",
                         },
-                        }
                     },
+                },
                 "required": ["date", "nameOfPersonOrOrganization", "personKilled"],
             },
         },
@@ -42,22 +50,48 @@ def llm_create_db_entry(article):
 
     # Ask LLM, to call create_database_entry tool by extracting the relevant information from the given article.
     response = client.chat.completions.create(
-        model = "gpt-3.5-turbo-1106",
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant, aimed at analysing text data and extracting relevant information."},
-            {"role": "user", "content": "Make a new database entry for the following article:"},
+        model="gpt-3.5-turbo-1106",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful assistant, aimed at analysing text data and extracting relevant information.",
+            },
+            {
+                "role": "user",
+                "content": "Make a new database entry for the following article:",
+            },
             {"role": "user", "content": article.content},
         ],
-        temperature = 1.0,
-        tools = tools,
-        tool_choice = "auto",
-    ) 
+        temperature=1.0,
+        tools=tools,
+        tool_choice="auto",
+    )
     response_message = response.choices[0].message
     tool_calls = response_message.tool_calls
-    
+
+    response_summary = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful assistant, aimed at analysing text data and extracting relevant information.",
+            },
+            {
+                "role": "user",
+                "content": "summarize the article in few sentences as possible:",
+            },
+            {"role": "user", "content": article.content},
+        ],
+        temperature=1.0,
+    )
+
+    response_message_summary = response_summary.choices[0].message
+
     if tool_calls:
-        tool_call = tool_calls[0] # LLM can possibly make multiple functions calls, only take the first
-        
+        tool_call = tool_calls[
+            0
+        ]  # LLM can possibly make multiple functions calls, only take the first
+
         if tool_call.function.name != "create_database_entry":
             return "Error: Unexpected function call."
         function_args = json.loads(tool_call.function.arguments)
@@ -65,10 +99,10 @@ def llm_create_db_entry(article):
         # Check if all required arguments are present in the function call
         for arg in db_required_args:
             if arg not in function_args:
-                return f"Error: No {arg} found in the function call. Function call: {function_args}"        
+                return f"Error: No {arg} found in the function call. Function call: {function_args}"
 
-        _create_db_entry(function_args, article)
-        
+        _create_db_entry(function_args, article, response_message_summary)
+
         return "Database entry created successfully."
-    
+
     return "Error: No function call found."
