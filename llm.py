@@ -1,5 +1,6 @@
 from openai import OpenAI
 import json
+from db_parameters import llm_tool, db_params
 
 
 def _create_db_entry(args_from_llm, article, response_message_summary):
@@ -18,36 +19,6 @@ def llm_create_db_entry(article):
     """Takes an article as input and creates a new database entry, by utilizing a llm to extract the relevant information."""
     client = OpenAI()
 
-    # Define a single tool, namely create_database_entry, which takes all the necessary parameters to create a new entry in the database.
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "create_database_entry",
-                "description": "Create a new entry in the database with the given parameters.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "date": {
-                            "type": "string",
-                            "description": "First date that you find in the article.",
-                        },
-                        "nameOfPersonOrOrganization": {
-                            "type": "string",
-                            "description": "First name of any person or organization that you find in the article.",
-                        },
-                        "personKilled": {
-                            "type": "string",
-                            "description": "Yes or No: Did the article write about a social gathering event?",
-                        },
-                    },
-                },
-                "required": ["date", "nameOfPersonOrOrganization", "personKilled"],
-            },
-        },
-    ]
-    db_required_args = ["date", "nameOfPersonOrOrganization", "personKilled"]
-
     # Ask LLM, to call create_database_entry tool by extracting the relevant information from the given article.
     response = client.chat.completions.create(
         model="gpt-3.5-turbo-1106",
@@ -62,10 +33,10 @@ def llm_create_db_entry(article):
             },
             {"role": "user", "content": article.content},
         ],
-        temperature=1.0,
-        tools=tools,
-        tool_choice="auto",
-    )
+        temperature = 1.0,
+        tools = llm_tool,
+        tool_choice = "auto",
+    ) 
     response_message = response.choices[0].message
     tool_calls = response_message.tool_calls
 
@@ -97,7 +68,7 @@ def llm_create_db_entry(article):
         function_args = json.loads(tool_call.function.arguments)
 
         # Check if all required arguments are present in the function call
-        for arg in db_required_args:
+        for arg in db_params:
             if arg not in function_args:
                 return f"Error: No {arg} found in the function call. Function call: {function_args}"
 

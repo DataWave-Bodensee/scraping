@@ -33,7 +33,7 @@ def _get_website_content(url):
         article = newspaper.Article(url=url)
         article.download()
         article.parse()
-        return article.text
+        return article.text if article.text else "failed"
     except Exception as e:
         print(f"Error occurred while processing article: {e}")
         return "failed"
@@ -64,15 +64,16 @@ def get_website_contents(articles):
     return
 
 
-def _contains_keywords(article, keywords, threshold):
-    """checks, whether an article contains at least <threshold> keywords
+def _contains_keywords(article, keywords):
+    """checks, which keywords an article contains
         article: string
+        return: list of keywords contained in the article
     """
-    count = 0
+    article_keywords = []
     for keyword in keywords:
         if keyword.lower() in article.lower():
-            count += 1
-    return count >= threshold
+           article_keywords.append(keyword)
+    return article_keywords
 
 
 def filter_on_keywords(articles, keywords, threshold):
@@ -80,13 +81,16 @@ def filter_on_keywords(articles, keywords, threshold):
     True: contains keywords, filter passed. 
     False: doesn't contain enough keywords, filter not passed."""
     
-    keyword_filter = [False for _ in range (0,len(articles))]
-    articles['passed_keyword_filter'] = keyword_filter
+    articles['passed_keyword_filter'] = [False for _ in range (0,len(articles))]
+    articles['keywords'] = [[] for _ in range (0,len(articles))]
+
     passed = 0
     
     for article in articles.itertuples():
-        if _contains_keywords(article.content, keywords, threshold):
+        contained_keywords = _contains_keywords(article.content, keywords)
+        if len(contained_keywords) >= threshold:
             articles.at[article.Index, 'passed_keyword_filter'] = True
+            articles.at[article.Index, 'keywords'] = contained_keywords
             passed += 1
 
     print("  Keyword filtering finished, Passed: {}, Didn't pass: {}".format(passed, len(articles) - passed))
@@ -96,7 +100,7 @@ def filter_on_keywords(articles, keywords, threshold):
 def scrape_and_save():
     # Search for refugee and get urls of websites containing news articles
     print('Searching for websites...')
-    articles = pd.DataFrame(get_news_websites('refugee'))[:5] # only 5 for testing
+    articles = pd.DataFrame(get_news_websites('migration accident'))[:20] # 20 for testing
 
     # Try to scrape the urls and get the plain article
     print('Scraping websites...')
@@ -113,6 +117,11 @@ def load_articles():
     articles = pd.read_csv('articles.csv')
     return articles
 
+def load_filtered_articles():
+    # Load the articles from the csv file
+    print('Loading articles from csv...')
+    articles = pd.read_csv('articles_filtered.csv')
+    return articles
 
 def filter_and_save(articles):
     # Filter the articles on keywords (and later also llm classifier)
@@ -123,7 +132,8 @@ def filter_and_save(articles):
     articles.to_csv('articles_filtered.csv')
 
 
-# scrape_and_save()
+#scrape_and_save()
 articles = load_articles()
 filter_and_save(articles)
-print(llm_create_db_entry(articles.iloc[0]))
+#articles = load_filtered_articles()
+#print(llm_create_db_entry(articles.iloc[1]))
