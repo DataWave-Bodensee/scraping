@@ -33,7 +33,7 @@ def _get_website_content(url):
         article = newspaper.Article(url=url)
         article.download()
         article.parse()
-        return article.text
+        return article.text if article.text else "failed"
     except Exception as e:
         print(f"Error occurred while processing article: {e}")
         return "failed"
@@ -96,7 +96,7 @@ def filter_on_keywords(articles, keywords, threshold):
 def scrape_and_save():
     # Search for refugee and get urls of websites containing news articles
     print('Searching for websites...')
-    articles = pd.DataFrame(get_news_websites('refugee'))[:5] # only 5 for testing
+    articles = pd.DataFrame(get_news_websites('migration accident'))[:20] # 20 for testing
 
     # Try to scrape the urls and get the plain article
     print('Scraping websites...')
@@ -113,6 +113,11 @@ def load_articles():
     articles = pd.read_csv('articles.csv')
     return articles
 
+def load_filtered_articles():
+    # Load the articles from the csv file
+    print('Loading articles from csv...')
+    articles = pd.read_csv('articles_filtered.csv')
+    return articles
 
 def filter_and_save(articles):
     # Filter the articles on keywords (and later also llm classifier)
@@ -123,7 +128,8 @@ def filter_and_save(articles):
     articles.to_csv('articles_filtered.csv')
 
 
-# scrape_and_save()
-articles = load_articles()
-filter_and_save(articles)
+#scrape_and_save()
+#articles = load_articles()
+#filter_and_save(articles)
+articles = load_filtered_articles()
 print(llm_create_db_entry(articles.iloc[1]))
