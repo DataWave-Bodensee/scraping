@@ -5,6 +5,7 @@ from db_parameters import llm_tool, db_params
 def _create_db_entry(args_from_llm, article):
     """Creates a new entry in the database."""
     print("Creating a new database entry...", args_from_llm, article.title, article.published)
+    # additionally needed: id (create), keywords,  content, url,
     return "Database entry created successfully."
 
 def llm_create_db_entry(article):        

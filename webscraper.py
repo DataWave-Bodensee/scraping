@@ -64,15 +64,16 @@ def get_website_contents(articles):
     return
 
 
-def _contains_keywords(article, keywords, threshold):
-    """checks, whether an article contains at least <threshold> keywords
+def _contains_keywords(article, keywords):
+    """checks, which keywords an article contains
         article: string
+        return: list of keywords contained in the article
     """
-    count = 0
+    article_keywords = []
     for keyword in keywords:
         if keyword.lower() in article.lower():
-            count += 1
-    return count >= threshold
+           article_keywords.append(keyword)
+    return article_keywords
 
 
 def filter_on_keywords(articles, keywords, threshold):
@@ -80,13 +81,16 @@ def filter_on_keywords(articles, keywords, threshold):
     True: contains keywords, filter passed. 
     False: doesn't contain enough keywords, filter not passed."""
     
-    keyword_filter = [False for _ in range (0,len(articles))]
-    articles['passed_keyword_filter'] = keyword_filter
+    articles['passed_keyword_filter'] = [False for _ in range (0,len(articles))]
+    articles['keywords'] = [[] for _ in range (0,len(articles))]
+
     passed = 0
     
     for article in articles.itertuples():
-        if _contains_keywords(article.content, keywords, threshold):
+        contained_keywords = _contains_keywords(article.content, keywords)
+        if len(contained_keywords) >= threshold:
             articles.at[article.Index, 'passed_keyword_filter'] = True
+            articles.at[article.Index, 'keywords'] = contained_keywords
             passed += 1
 
     print("  Keyword filtering finished, Passed: {}, Didn't pass: {}".format(passed, len(articles) - passed))
@@ -129,7 +133,7 @@ def filter_and_save(articles):
 
 
 #scrape_and_save()
-#articles = load_articles()
-#filter_and_save(articles)
-articles = load_filtered_articles()
-print(llm_create_db_entry(articles.iloc[1]))
+articles = load_articles()
+filter_and_save(articles)
+#articles = load_filtered_articles()
+#print(llm_create_db_entry(articles.iloc[1]))
