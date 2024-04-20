@@ -1,4 +1,5 @@
-{
+# Define a single tool for the LLM, namely create_database_entry, which takes all the necessary parameters to create a new entry in the database.
+llm_tool = [{
     "type": "function",
     "function": {
         "name": "create_database_entry",
@@ -41,9 +42,16 @@
                 },
                 "Location of Incident": {
                     "type": "string",
-                    "description": "Place where the death(s) occurred or where the body or bodies were found. Nearby towns or cities or borders are included where possible. When incidents are reported in an unspecified location, this will be noted",
-                    "enum": "longitude and latitude",
+                    "description": "Place where the death(s) occurred or where the body or bodies were found. Nearby towns or cities or borders are included where possible. When incidents are reported in an unspecified location, this will be noted"
                 },
+                "Latitude":{
+                    "type": "string",
+                    "description": "Guess the latitude of the incident location"
+                },
+                "Longitude":{
+                    "type": "string",
+                    "description": "Guess the longitude of the incident location"
+                }
             },
             "required": [
                 "Region of Incident",
@@ -56,7 +64,24 @@
                 "Cause of Death",
                 "Country of Incident",
                 "Location of Incident",
+                "Latitude",
+                "Longitude"
             ],
         },
     },
-}
+}]
+
+db_params = [
+                "Region of Incident",
+                "Incident Date",
+                "Number of Dead",
+                "Number of Missing",
+                "Number of Survivors",
+                "Country of Origin",
+                "Region of Origin",
+                "Cause of Death",
+                "Country of Incident",
+                "Location of Incident",
+                "Latitude",
+                "Longitude"
+            ]

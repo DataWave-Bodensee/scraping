@@ -126,4 +126,4 @@ def filter_and_save(articles):
 # scrape_and_save()
 articles = load_articles()
 filter_and_save(articles)
-print(llm_create_db_entry(articles.iloc[0]))
+print(llm_create_db_entry(articles.iloc[1]))
