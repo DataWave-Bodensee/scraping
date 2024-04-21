@@ -1,15 +1,17 @@
-from pygooglenews import GoogleNews
+from webscraper.pygooglenews import GoogleNews
 import newspaper
 import datetime
 import pandas as pd
-from llm import llm_create_db_entry
+from webscraper.llm import llm_create_db_entry
+import ast
+from database.db_operations import insert_article
 
 
 def get_news_websites(search):
     """find urls, given a search term"""
     websites = []
-    start_date = datetime.date(2023,6,16)
-    end_date = datetime.date(2023,6,17)
+    start_date = datetime.date(2023,3,1)
+    end_date = datetime.date(2023,9,1)
     
     gn = GoogleNews()
     search = gn.search(search, from_=start_date.strftime('%Y-%m-%d'), to_=end_date.strftime('%Y-%m-%d'))
@@ -100,7 +102,7 @@ def filter_on_keywords(articles, keywords, threshold):
 def scrape_and_save():
     # Search for refugee and get urls of websites containing news articles
     print('Searching for websites...')
-    articles = pd.DataFrame(get_news_websites('migration accident'))[:20] # 20 for testing
+    articles = pd.DataFrame(get_news_websites('migration accident'))[:50] # 20 for testing
 
     # Try to scrape the urls and get the plain article
     print('Scraping websites...')
@@ -116,24 +118,55 @@ def load_articles():
     print('Loading articles from csv...')
     articles = pd.read_csv('articles.csv')
     return articles
-
-def load_filtered_articles():
+def load_filtered_on_keywords_articles():
     # Load the articles from the csv file
     print('Loading articles from csv...')
-    articles = pd.read_csv('articles_filtered.csv')
+    articles = pd.read_csv('articles_filtered_on_keywords.csv')
+    articles['keywords'] = articles['keywords'].apply(ast.literal_eval)  # Convert string representation of keywords back to list
+    return articles
+def load_filtered_on_llm_articles():
+    # Load the articles from the csv file
+    print('Loading articles from csv...')
+    articles = pd.read_csv('articles_filtered_on_llm.csv')
+    articles['keywords'] = articles['keywords'].apply(ast.literal_eval)  # Convert string representation of keywords back to list
     return articles
 
-def filter_and_save(articles):
-    # Filter the articles on keywords (and later also llm classifier)
+def filter_on_keywords_and_save(articles):
+    # Filter the articles on keywords
     print('Filtering articles on keywords...')
-    keywords = ['refugee', 'death', 'accident', 'the']
-    threshold = 3
+    keywords = ['Refugee', 'Death', 'Migrant', 'Missing', ' Body', 'Crossing', 'Asylum', 'Seeker', 'Accident', 'Boat', 'Rescue']
+    threshold = 5
     filter_on_keywords(articles, keywords, threshold)
-    articles.to_csv('articles_filtered.csv')
+    articles = articles[articles['passed_keyword_filter']]
+    articles.to_csv('articles_filtered_on_keywords.csv')
+
+def filter_on_llm_and_save(articles):
+    # Filter the articles on keywords
+    print('Filtering articles on llm...')
+    processed_articles = []
+    for article in articles.itertuples():
+        print("Filtering on llm, article {} from {}...".format(article.Index + 1, len(articles)))
+        entry = llm_create_db_entry(article)
+        if entry is not None:
+            processed_articles.append(entry)
+    
+    processed_articles = pd.DataFrame(processed_articles)
+    processed_articles.to_csv('articles_filtered_on_llm.csv')
+    print("Finished filtering on llm, Passed: {}, Didn't pass: {}".format(len(processed_articles), len(articles) - len(processed_articles)))
+
+def write_to_db(articles):
+    # Write the articles to the database
+    print('Writing articles to the database...')
+    for article in articles.itertuples():
+        article_dict = article._asdict()
+        insert_article(article_dict)
+    return
 
 
 #scrape_and_save()
 #articles = load_articles()
-#filter_and_save(articles)
-articles = load_filtered_articles()
-print(llm_create_db_entry(articles.iloc[1]))
+#filter_on_keywords_and_save(articles)
+#articles = load_filtered_on_keywords_articles()
+#filter_on_llm_and_save(articles)
+#articles = load_filtered_on_llm_articles()
+#write_to_db(articles)
