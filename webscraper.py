@@ -1,17 +1,17 @@
-from webscraper.pygooglenews import GoogleNews
+from pygooglenews import GoogleNews
 import newspaper
 import datetime
 import pandas as pd
-from webscraper.llm import llm_create_db_entry
-import ast
-from database.db_operations import insert_article
+from llm import llm_create_db_entry
+from db_operations import insert_article
 
 
-def get_news_websites(search):
-    """find urls, given a search term"""
+def _get_news_websites(search):
+    """find urls to a given search term
+        search: string"""
     websites = []
     start_date = datetime.date(2023,3,1)
-    end_date = datetime.date(2023,9,1)
+    end_date = datetime.date(2023,3,2)
     
     gn = GoogleNews()
     search = gn.search(search, from_=start_date.strftime('%Y-%m-%d'), to_=end_date.strftime('%Y-%m-%d'))
@@ -30,7 +30,11 @@ def get_news_websites(search):
 
 
 def _get_website_content(url):
-    """get article content as plain text, given an url"""
+    """Given a single link to an article on a news-website, get the article content as plain text.
+    Returns content as plain text or "failed" if it fails to get the content.
+        url: string
+        return: string
+    """
     try:
         article = newspaper.Article(url=url)
         article.download()
@@ -41,9 +45,10 @@ def _get_website_content(url):
         return "failed"
 
 
-def get_website_contents(articles):
-    """Enriches an panda df of articles by a content-column, containing the article as plain text.
-    If it fails to get the content, it will remove the entry from the df and print an error message"""
+def _get_websites_contents(articles):
+    """Enriches the articles panda-df by a content-column, containing the article as plain text.
+    If it fails to get the content, it will remove the entry from the df and print an error message.
+    articles: panda df"""
     contents = ["" for _ in range (0,len(articles))]
     articles["content"] = contents
     successes = 0
@@ -78,11 +83,29 @@ def _contains_keywords(article, keywords):
     return article_keywords
 
 
-def filter_on_keywords(articles, keywords, threshold):
+def scrape():
+    """Scrape news websites for articles containing the word 'migration accident'"""
+    # Search for refugee and get urls of websites containing news articles
+    print('Searching for websites...')
+    articles = pd.DataFrame(_get_news_websites('migration accident'))[:50] # 20 for testing
+
+    # Try to scrape the urls and get the plain article
+    print('Scraping websites...')
+    _get_websites_contents(articles)
+
+    return articles
+
+
+def filter_on_keywords(articles):
     """ Enriches an panda df of articles by a passed_keyword_filter-column, stating whether they pass the filter or not. 
     True: contains keywords, filter passed. 
     False: doesn't contain enough keywords, filter not passed."""
     
+    # Filter the articles on keywords
+    print('Filtering articles on keywords...')
+    keywords = ['Refugee', 'Death', 'Migrant', 'Missing', ' Body', 'Crossing', 'Asylum', 'Seeker', 'Accident', 'Boat', 'Rescue']
+    threshold = 5
+
     articles['passed_keyword_filter'] = [False for _ in range (0,len(articles))]
     articles['keywords'] = [[] for _ in range (0,len(articles))]
 
@@ -96,66 +119,28 @@ def filter_on_keywords(articles, keywords, threshold):
             passed += 1
 
     print("  Keyword filtering finished, Passed: {}, Didn't pass: {}".format(passed, len(articles) - passed))
-    return 
-
-
-def scrape_and_save():
-    # Search for refugee and get urls of websites containing news articles
-    print('Searching for websites...')
-    articles = pd.DataFrame(get_news_websites('migration accident'))[:50] # 20 for testing
-
-    # Try to scrape the urls and get the plain article
-    print('Scraping websites...')
-    get_website_contents(articles)
-
-    # Save the articles to a csv file
-    print('Saving articles to csv...')
-    articles.to_csv('articles.csv')
-
-
-def load_articles():
-    # Load the articles from the csv file
-    print('Loading articles from csv...')
-    articles = pd.read_csv('articles.csv')
-    return articles
-def load_filtered_on_keywords_articles():
-    # Load the articles from the csv file
-    print('Loading articles from csv...')
-    articles = pd.read_csv('articles_filtered_on_keywords.csv')
-    articles['keywords'] = articles['keywords'].apply(ast.literal_eval)  # Convert string representation of keywords back to list
-    return articles
-def load_filtered_on_llm_articles():
-    # Load the articles from the csv file
-    print('Loading articles from csv...')
-    articles = pd.read_csv('articles_filtered_on_llm.csv')
-    articles['keywords'] = articles['keywords'].apply(ast.literal_eval)  # Convert string representation of keywords back to list
-    return articles
-
-def filter_on_keywords_and_save(articles):
-    # Filter the articles on keywords
-    print('Filtering articles on keywords...')
-    keywords = ['Refugee', 'Death', 'Migrant', 'Missing', ' Body', 'Crossing', 'Asylum', 'Seeker', 'Accident', 'Boat', 'Rescue']
-    threshold = 5
-    filter_on_keywords(articles, keywords, threshold)
     articles = articles[articles['passed_keyword_filter']]
-    articles.to_csv('articles_filtered_on_keywords.csv')
+    return articles
 
-def filter_on_llm_and_save(articles):
-    # Filter the articles on keywords
+
+def filter_on_llm_and_extract(articles):
+    """Filters the articles on the LLMs assessment and returns array of db-entries"""
     print('Filtering articles on llm...')
     processed_articles = []
-    for article in articles.itertuples():
-        print("Filtering on llm, article {} from {}...".format(article.Index + 1, len(articles)))
+    for idx, article in enumerate(articles.itertuples(),1):
+        print("Filtering on llm, article {} from {}...".format(idx, len(articles)))
         entry = llm_create_db_entry(article)
         if entry is not None:
             processed_articles.append(entry)
     
     processed_articles = pd.DataFrame(processed_articles)
-    processed_articles.to_csv('articles_filtered_on_llm.csv')
-    print("Finished filtering on llm, Passed: {}, Didn't pass: {}".format(len(processed_articles), len(articles) - len(processed_articles)))
+    print("Finished filtering on llm and extracting data, Filter passed: {}, Didn't pass: {}".format(len(processed_articles), len(articles) - len(processed_articles)))
+
+    return articles
+
 
 def write_to_db(articles):
-    # Write the articles to the database
+    """Write the db-entries to the database"""
     print('Writing articles to the database...')
     for article in articles.itertuples():
         article_dict = article._asdict()
@@ -163,10 +148,11 @@ def write_to_db(articles):
     return
 
 
-#scrape_and_save()
-#articles = load_articles()
-#filter_on_keywords_and_save(articles)
-#articles = load_filtered_on_keywords_articles()
-#filter_on_llm_and_save(articles)
-#articles = load_filtered_on_llm_articles()
-#write_to_db(articles)
+def scrape_filter_write():
+    """Main function to scrape, filter and write to the database"""
+    articles = scrape()
+    articles = filter_on_keywords(articles)
+    articles = filter_on_llm_and_extract(articles)
+    write_to_db(articles)
+
+scrape_filter_write()
