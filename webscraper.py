@@ -136,7 +136,7 @@ def filter_on_llm_and_extract(articles):
     processed_articles = pd.DataFrame(processed_articles)
     print("Finished filtering on llm and extracting data, Filter passed: {}, Didn't pass: {}".format(len(processed_articles), len(articles) - len(processed_articles)))
 
-    return articles
+    return processed_articles
 
 
 def write_to_db(articles):
